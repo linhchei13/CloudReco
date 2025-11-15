@@ -1,0 +1,10 @@
+# Python virtual env
+.venv/
+
+# Byte-compiled
+__pycache__/
+*.py[cod]
+
+# Environment/config
+.env
+.vscode/.venv/
