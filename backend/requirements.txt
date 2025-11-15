@@ -1,18 +1,29 @@
+# # --- Core web framework ---
+# Flask==3.0.3
+# gunicorn==23.0.0
+
+# # --- Image processing / AI ---
+# torch==2.4.1
+# torchvision==0.19.1
+# Pillow==11.0.0
+
+# # --- Cloud integrations ---
+# # OpenStack Swift (object storage)
+# python-swiftclient==4.4.0
+# keystoneauth1==5.5.0
+
+# # AWS S3 (optional, nếu bạn bật song song với Swift)
+# boto3==1.35.0
+
+# # --- Utils / Environment ---
+# python-dotenv==1.0.1
+# requests==2.32.3
 # --- Core web framework ---
 Flask==3.0.3
 gunicorn==23.0.0
 
-# --- Image processing / AI ---
-torch==2.4.1
-torchvision==0.19.1
-Pillow==11.0.0
-
-# --- Cloud integrations ---
-# OpenStack Swift (object storage)
-python-swiftclient==4.4.0
-keystoneauth1==5.5.0
-
-# AWS S3 (optional, nếu bạn bật song song với Swift)
+# --- Cloud integrations (AWS) ---
+# Boto3 là thư viện chính để kết nối S3, SQS, và Rekognition
 boto3==1.35.0
 
 # --- Utils / Environment ---
