@@ -1,64 +1,46 @@
-# worker.py
+# worker.py (Đã cập nhật 2 buckets)
 import os
 import json
 import time
 import boto3
 from botocore.exceptions import ClientError
 
-# --- 1. LẤY BIẾN MÔI TRƯỜNG ---
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 INPUT_QUEUE_URL = os.getenv("INPUT_QUEUE_URL")
-S3_BUCKET = os.getenv("S3_BUCKET")
+# Xóa S3_BUCKET, vì worker sẽ nhận bucket name từ SQS
 RESULT_S3_PREFIX = os.getenv("RESULT_S3_PREFIX", "results/")
 
-# --- 2. KIỂM TRA BIẾN MÔI TRƯỜNG ---
-# (Nếu các biến này bị thiếu, script sẽ dừng ở đây)
-if not INPUT_QUEUE_URL or not S3_BUCKET:
-    raise RuntimeError("Missing required env vars: INPUT_QUEUE_URL and S3_BUCKET")
+if not INPUT_QUEUE_URL:
+    raise RuntimeError("Missing required env var: INPUT_QUEUE_URL")
 
-# --- 3. KHỞI TẠO CLIENTS ---
 session = boto3.session.Session(region_name=AWS_REGION)
 sqs = session.client("sqs")
 s3 = session.client("s3")
 rekognition = session.client("rekognition")
 
-
-# --- 4. HÀM NHẬN DIỆN ---
+# (Hàm run_inference_on_bytes không đổi)
 def run_inference_on_bytes(img_bytes, filename):
-    """
-    Hàm này gọi API Amazon Rekognition để nhận diện nhãn (labels)
-    từ nội dung bytes của ảnh.
-    """
     print(f"Bắt đầu gọi Rekognition cho file: {filename}")
     try:
         response = rekognition.detect_labels(
-            Image={
-                'Bytes': img_bytes  # Truyền trực tiếp nội dung bytes của ảnh
-            },
+            Image={'Bytes': img_bytes},
             MaxLabels=10,
-            MinConfidence=80.0 # Chỉ lấy các nhãn có độ tin cậy > 80%
+            MinConfidence=80.0
         )
-        
-        # Xử lý kết quả trả về từ Rekognition
         labels = []
         for label in response.get('Labels', []):
             labels.append({
                 "name": label.get('Name'),
                 "confidence": label.get('Confidence')
             })
-
         print(f"Rekognition thành công, tìm thấy {len(labels)} nhãn.")
-        
-        # Trả về kết quả theo dạng dict
         return {
             "filename": filename,
             "analysis_service": "aws_rekognition",
             "labels": labels
         }
-
     except ClientError as e:
         print(f"Lỗi khi gọi Rekognition: {e}")
-        # Nếu lỗi, trả về một dict thông báo lỗi
         return {
             "filename": filename,
             "analysis_service": "aws_rekognition",
@@ -71,48 +53,56 @@ def run_inference_on_bytes(img_bytes, filename):
             "error": f"Unknown error: {str(e)}"
         }
 
-# --- 5. HÀM XỬ LÝ MESSAGE ---
+# --- THAY ĐỔI: Sửa hàm process_message ---
 def process_message(msg):
     body = json.loads(msg['Body'])
+    
+    # Đọc tên bucket và key từ message
     uid = body.get('uid')
-    s3_bucket = body.get('s3_bucket')
-    s3_key = body.get('s3_key')
+    s3_bucket_in = body.get('s3_bucket_in')
+    s3_key_in = body.get('s3_key_in')
+    s3_bucket_out = body.get('s3_bucket_out')
     filename = body.get('filename', 'unknown')
 
-    if not (uid and s3_bucket and s3_key):
-        print("Malformed message, skipping:", msg.get('MessageId'))
+    # Kiểm tra message mới
+    if not (uid and s3_bucket_in and s3_key_in and s3_bucket_out):
+        print("Malformed message (missing bucket info), skipping:", msg.get('MessageId'))
         return False
 
     try:
-        obj = s3.get_object(Bucket=s3_bucket, Key=s3_key)
+        # Tải ảnh từ BUCKET_IN
+        print(f"Đang tải ảnh từ: {s3_bucket_in}/{s3_key_in}")
+        obj = s3.get_object(Bucket=s3_bucket_in, Key=s3_key_in)
         img_bytes = obj['Body'].read()
     except ClientError as e:
         print("Failed to download image from S3:", e)
         return False
 
-    # Chạy nhận diện
+    # Chạy nhận diện (không đổi)
     result_data = run_inference_on_bytes(img_bytes, filename)
     result_data.update({"uid": uid})
 
     result_key = f"{RESULT_S3_PREFIX}{uid}.json"
     try:
-        s3.put_object(Bucket=S3_BUCKET, Key=result_key, Body=json.dumps(result_data, indent=2), ContentType='application/json')
+        # Upload kết quả lên BUCKET_OUT
+        print(f"Đang upload kết quả lên: {s3_bucket_out}/{result_key}")
+        s3.put_object(Bucket=s3_bucket_out, Key=result_key, Body=json.dumps(result_data, indent=2), ContentType='application/json')
     except ClientError as e:
         print("Failed to put result to S3:", e)
         return False
 
     return True
+# --- KẾT THÚC THAY ĐỔI ---
 
-# --- 6. VÒNG LẶP CHÍNH ---
+# (Hàm poll_loop không đổi)
 def poll_loop():
-    # DÒNG NÀY SẼ ĐƯỢC IN RA NẾU KHÔNG CÓ LỖI GÌ
     print("Worker started. Polling SQS:", INPUT_QUEUE_URL)
     while True:
         try:
             resp = sqs.receive_message(
                 QueueUrl=INPUT_QUEUE_URL,
                 MaxNumberOfMessages=1,
-                WaitTimeSeconds=20,  # long polling
+                WaitTimeSeconds=20,
                 MessageAttributeNames=['All']
             )
             messages = resp.get('Messages', [])
@@ -134,6 +124,5 @@ def poll_loop():
             print("Worker exception:", e)
             time.sleep(5)
 
-# --- 7. ĐIỂM BẮT ĐẦU CHẠY ---
 if __name__ == "__main__":
     poll_loop()

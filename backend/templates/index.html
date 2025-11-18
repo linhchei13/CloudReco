@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hybrid Cloud Image Recognition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CDN -->
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    >
+
+    <style>
+        body {
+            background: radial-gradient(circle at top left, #e0f2ff, #f5f7fb);
+            min-height: 100vh;
+        }
+        .app-wrapper {
+            max-width: 960px;
+        }
+        .card {
+            border-radius: 1.25rem;
+        }
+        .drop-zone {
+            border: 2px dashed #98b3ff;
+            border-radius: 1rem;
+            padding: 2rem 1rem;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .drop-zone.dragover {
+            background: #e4edff;
+            border-color: #5a7dff;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+        }
+        .preview-img {
+            max-width: 100%;
+            max-height: 280px;
+            display: block;
+            margin: 0 auto;
+            object-fit: contain;
+            border-radius: 0.75rem;
+        }
+        .badge-label {
+            font-size: 1rem;
+            padding: 0.4rem 0.75rem;
+            border-radius: 999px;
+        }
+        .spinner-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1050;
+        }
+        .spinner-box {
+            background: #ffffff;
+            padding: 1.5rem 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
+            text-align: center;
+        }
+        .spinner-border {
+            width: 2.5rem;
+            height: 2.5rem;
+        }
+        code {
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="d-flex align-items-center justify-content-center">
+
+<div class="spinner-overlay" id="spinner-overlay">
+    <div class="spinner-box">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <div class="fw-semibold mb-1">Hệ thống đang phân loại ảnh…</div>
+        <div class="text-muted" style="font-size: 0.9rem;">
+            Vui lòng giữ tab này mở. Tùy vào tải hệ thống mà có thể mất vài giây.
+        </div>
+    </div>
+</div>
+
+<div class="container app-wrapper my-4">
+    <div class="row g-4 align-items-stretch">
+        <!-- Left side: Upload & preview -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-body p-4 p-md-5">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div>
+                            <h3 class="mb-2">Hybrid Cloud Image Recognition</h3>
+                            <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                                OpenStack (Web tier) + AWS SQS &amp; EC2 (App tier) + S3
+                            </p>
+                        </div>
+                    </div>
+
+                    <form id="upload-form" action="/predict" method="POST" enctype="multipart/form-data">
+                        <!-- Hidden input thật -->
+                        <input
+                            class="d-none"
+                            type="file"
+                            id="image_file"
+                            name="image_file"
+                            accept="image/*"
+                            required
+                        >
+
+                        <!-- Drop zone -->
+                        <div
+                            class="drop-zone mb-3"
+                            id="drop-zone"
+                            onclick="document.getElementById('image_file').click()"
+                        >
+                            <div class="mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none"
+                                     viewBox="0 0 24 24" stroke="currentColor" class="text-primary mb-1">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"
+                                          d="M3 16.5V19a2 2 0 002 2h14a2 2 0 002-2v-2.5M12 3v12m0-12L8 7m4-4l4 4"/>
+                                </svg>
+                            </div>
+                            <p class="mb-1 fw-semibold">
+                                Kéo &amp; thả ảnh vào đây hoặc bấm để chọn file
+                            </p>
+                            <p class="text-muted mb-0" style="font-size: 0.85rem;">
+                                Hỗ trợ các định dạng phổ biến: JPG, JPEG, PNG…
+                            </p>
+                        </div>
+
+                        <!-- Selected file name -->
+                        <div class="mb-3">
+                            <label class="form-label mb-1">Ảnh đã chọn</label>
+                            <input
+                                type="text"
+                                id="selected-file-name"
+                                class="form-control form-control-sm"
+                                placeholder="Chưa có ảnh nào được chọn"
+                                readonly
+                            >
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-3">
+                            <button class="btn btn-primary px-4" type="submit">
+                                🔍 Phân loại ảnh
+                            </button>
+                            <button
+                                class="btn btn-outline-secondary btn-sm"
+                                type="button"
+                                id="btn-clear"
+                            >
+                                Xoá ảnh đã chọn
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Preview ảnh trước khi gửi -->
+                    <div class="mt-4" id="preview-container" style="display: none;">
+                        <h6 class="mb-2">Ảnh xem trước:</h6>
+                        <img id="preview-img" class="preview-img" alt="Preview image">
+                    </div>
+
+                    <!-- Ghi chú -->
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="small text-muted">
+                            <strong>Flow xử lý:</strong> Web Tier nhận ảnh ➜
+                            gửi base64 + UID lên <code>SQS InputQueue</code> ➜
+                            App Tier (EC2) đọc queue, chạy ResNet18 ➜
+                            ghi kết quả vào <code>requests_files/&lt;UID&gt;.txt</code> ➜
+                            Web Tier trả label về trang này.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right side: Result & logs -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-body p-4 p-md-4 d-flex flex-column">
+                    <h5 class="mb-3">Kết quả phân loại</h5>
+
+                    {% if prediction %}
+                        <div class="alert alert-success mb-3">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="badge-label text-bg-success me-2">Kết quả</span>
+                                <span class="fw-semibold">Ảnh đã được phân loại</span>
+                            </div>
+                            <div class="mt-2">
+                                <span class="fw-semibold">Label:</span>
+                                <span>{{ prediction }}</span>
+                            </div>
+                        </div>
+                    {% elif error %}
+                        <div class="alert alert-danger mb-3">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="badge-label text-bg-danger me-2">Lỗi</span>
+                                <span class="fw-semibold">Không thể xử lý ảnh</span>
+                            </div>
+                            <div class="mt-2">
+                                {{ error }}
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-secondary mb-3">
+                            Chưa có kết quả. Hãy tải một bức ảnh lên và bấm
+                            <strong>“Phân loại ảnh”</strong>.
+                        </div>
+                    {% endif %}
+
+                    <div class="mt-3">
+                        <h6 class="mb-2">Trạng thái request (mô tả logic)</h6>
+                        <ol class="small mb-0 text-muted">
+                            <li>Flask nhận file từ form <code>image_file</code>.</li>
+                            <li>Server encode base64, tạo <code>UID</code> và gửi message lên SQS.</li>
+                            <li>Worker đọc queue, chạy model, ghi kết quả vào file <code>requests_files/&lt;UID&gt;.txt</code>.</li>
+                            <li>Flask polling thư mục đó, đọc kết quả và hiển thị ở đây.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript: preview, drag & drop, spinner -->
+<script>
+    const fileInput = document.getElementById('image_file');
+    const previewContainer = document.getElementById('preview-container');
+    const previewImg = document.getElementById('preview-img');
+    const selectedFileName = document.getElementById('selected-file-name');
+    const dropZone = document.getElementById('drop-zone');
+    const uploadForm = document.getElementById('upload-form');
+    const spinnerOverlay = document.getElementById('spinner-overlay');
+    const btnClear = document.getElementById('btn-clear');
+
+    function resetPreview() {
+        previewContainer.style.display = 'none';
+        previewImg.src = '';
+        selectedFileName.value = '';
+        fileInput.value = '';
+    }
+
+    // Preview ảnh & hiển thị tên file
+    function handleFile(file) {
+        if (!file) return;
+
+        selectedFileName.value = file.name;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            previewImg.src = e.target.result;
+            previewContainer.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    fileInput.addEventListener('change', function () {
+        const file = this.files[0];
+        handleFile(file);
+    });
+
+    // Drag & drop
+    dropZone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files && files[0]) {
+            fileInput.files = files; // gán trực tiếp vào input thật
+            handleFile(files[0]);
+        }
+    });
+
+    // Clear button
+    btnClear.addEventListener('click', function () {
+        resetPreview();
+    });
+
+    // Hiện spinner khi submit form
+    uploadForm.addEventListener('submit', function (e) {
+        if (!fileInput.files || !fileInput.files[0]) {
+            e.preventDefault();
+            alert("Vui lòng chọn một ảnh trước khi phân loại.");
+            return;
+        }
+        spinnerOverlay.style.display = 'flex';
+    });
+</script>
+
+</body>
+</html>
