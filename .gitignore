@@ -11,5 +11,5 @@ __pycache__/
 .next/
 node_modules/
 dist/
-.DS_Store
 *.db
+.next/

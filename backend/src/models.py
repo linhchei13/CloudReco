@@ -16,6 +16,7 @@ class Image(Base):
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String)
     labels = Column(String)
+    swift_path = Column(String, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
 
     owner = relationship("User", back_populates="images")
