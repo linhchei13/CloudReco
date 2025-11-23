@@ -14,7 +14,8 @@ from .aws import get_labels
 from botocore.exceptions import NoCredentialsError, ClientError
 from fastapi.responses import Response
 from swiftclient.client import Connection as SwiftConnection
-
+from dotenv import load_dotenv
+load_dotenv()
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
@@ -38,6 +39,10 @@ SWIFT_CONTAINER = os.getenv('SWIFT_CONTAINER')
 
 # lazy init swift client
 swift_client = None
+print("AUTH_URL =", os.getenv("SWIFT_AUTH_URL"))
+print("USER =", os.getenv("SWIFT_USER"))
+print("KEY =", os.getenv("SWIFT_KEY"))
+print("TENANT =", os.getenv("SWIFT_TENANT"))
 try:
     if SWIFT_AUTH_URL and SWIFT_USER and SWIFT_KEY:
        swift_client = SwiftConnection(authurl=SWIFT_AUTH_URL, user=SWIFT_USER, key=SWIFT_KEY, tenant_name=SWIFT_TENANT, auth_version='2')
