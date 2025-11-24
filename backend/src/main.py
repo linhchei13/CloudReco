@@ -63,7 +63,7 @@ def signup(username: str, password: str, db: Session = Depends(get_db)):
 def login(username: str, password: str, db: Session = Depends(get_db)):
     user = auth_user(db, username, password)
     if not user:
-        return {"error": "invalid"}
+        return {"error": "Username or password incorrect"}
     token = create_token(user)
     return {"token": token}
 
