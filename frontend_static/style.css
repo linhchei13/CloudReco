@@ -432,3 +432,100 @@ input:focus {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* Modal */
+.modal {
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    border-radius: var(--radius);
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    animation: modalFadeIn 0.3s;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.close-modal {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    color: var(--muted);
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10;
+    line-height: 1;
+}
+
+.close-modal:hover {
+    color: var(--foreground);
+}
+
+.modal-body {
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 768px) {
+    .modal-body {
+        flex-direction: row;
+    }
+}
+
+.modal-image-wrapper {
+    flex: 2;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.modal-image-wrapper img {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+}
+
+.modal-info {
+    flex: 1;
+    padding: 2rem;
+    border-left: 1px solid var(--border);
+}
+
+#modal-filename {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    word-break: break-all;
+}
+
+.modal-date {
+    color: var(--muted);
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+
+.modal-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}

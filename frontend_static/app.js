@@ -25,6 +25,14 @@ const emptyState = document.getElementById('empty-state');
 const alertMessage = document.getElementById('alert-message');
 const alertText = document.getElementById('alert-text');
 
+// Modal Elements
+const imageModal = document.getElementById('image-modal');
+const closeModalBtn = document.querySelector('.close-modal');
+const modalImage = document.getElementById('modal-image');
+const modalFilename = document.getElementById('modal-filename');
+const modalDate = document.getElementById('modal-date');
+const modalLabels = document.getElementById('modal-labels');
+
 // Initialization
 function init() {
     if (token) {
@@ -266,6 +274,40 @@ async function fetchImages() {
     }
 }
 
+// Modal Logic
+function openModal(img) {
+    modalImage.src = `${API_URL}${img.image_url}`;
+    modalFilename.textContent = img.filename;
+    
+    // Format date
+    const date = img.created_at ? new Date(img.created_at).toLocaleString() : 'Unknown date';
+    modalDate.textContent = `Uploaded on ${date}`;
+    
+    // Labels
+    modalLabels.innerHTML = img.labels.map(label => 
+        `<span class="badge">${label}</span>`
+    ).join('');
+    
+    imageModal.classList.remove('hidden');
+}
+
+function closeModal() {
+    imageModal.classList.add('hidden');
+    modalImage.src = '';
+}
+
+if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', closeModal);
+}
+
+if (imageModal) {
+    imageModal.addEventListener('click', (e) => {
+        if (e.target === imageModal) {
+            closeModal();
+        }
+    });
+}
+
 function renderImages(images) {
     imageGrid.innerHTML = '';
     
@@ -277,6 +319,11 @@ function renderImages(images) {
     images.forEach(img => {
         const card = document.createElement('div');
         card.className = 'image-card';
+        card.style.cursor = 'pointer';
+        card.onclick = (e) => {
+            if (e.target.closest('.delete-btn')) return;
+            openModal(img);
+        };
         
         const fullImageUrl = `${API_URL}${img.image_url}`;
         

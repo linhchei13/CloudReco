@@ -135,7 +135,8 @@ def list_images(
             "id": img.id,
             "filename": img.filename,
             "labels": img.labels.split(","),
-            "image_url": f"/api/images/{img.id}/image" + (f"?token={token}" if token else "")
+            "image_url": f"/api/images/{img.id}/image" + (f"?token={token}" if token else ""),
+            "created_at": img.created_at.isoformat() if img.created_at else None
         }
         for img in images
     ]
